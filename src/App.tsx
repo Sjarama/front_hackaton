@@ -1,139 +1,119 @@
-import React, { useState, useEffect } from "react";
-import { predictRisk, generateCoachPlan } from "./services/api";
+
+import React, { useEffect, useState } from "react";
+import type { UserProfile, RiskResponse, CoachRequest } from "../types";
+import { predictRisk, generateCoachPlan, health } from "./services/api";
 import ProfileScreen from "./screens/ProfileScreen";
 import Dashboard from "./screens/Dashboard";
 import MealScreen from "./screens/MealScreen";
+import { Toasts, type Toast } from "./components/Toast";
+
 type Screen = "loading" | "profile" | "dashboard" | "meal";
 
-interface UserProfile {
-  age: number;
-  sex: "M" | "F";
-  height_cm: number;
-  weight_kg: number;
-  waist_cm: number;
-  sleep_hours: number;
-  smokes_cig_day: number;
-  days_mvpa_week: number;
-  fruit_veg_portions_day: number;
-}
-
-interface RiskData {
-  score: number;
-  risk_level: string;
-  recommendation: string;
-  drivers: string[];
-}
-
-function App() {
+const App: React.FC = () => {
   const [screen, setScreen] = useState<Screen>("loading");
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [risk, setRisk] = useState<RiskData | null>(null);
+  const [risk, setRisk] = useState<RiskResponse | null>(null);
   const [plan, setPlan] = useState<string | null>(null);
   const [planSources, setPlanSources] = useState<string[]>([]);
   const [loadingPlan, setLoadingPlan] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Test API + cargar perfil almacenado
+  const pushToast = (message: string, type: Toast["type"]="info") => {
+    const id = Date.now() + Math.random();
+    setToasts(t => [...t, { id, message, type }]);
+    setTimeout(() => setToasts(ts => ts.filter(x => x.id !== id)), 3500);
+  };
+
   useEffect(() => {
-    const init = async () => {
+    (async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/health");
-        const data = await res.json();
-        console.log("API:", data);
-      } catch (e) {
-        console.error("No se pudo conectar con la API", e);
-      }
-
-      const saved = localStorage.getItem("user_profile");
-      if (saved) {
-        const p = JSON.parse(saved);
-        setProfile(p);
-        setScreen("dashboard");
-        fetchRisk(p);
-      } else {
+        await health();
+        const saved = localStorage.getItem("profile");
+        if (saved) {
+          const p = JSON.parse(saved) as UserProfile;
+          setProfile(p);
+          const r = await predictRisk(p);
+          setRisk(r);
+          setScreen("dashboard");
+        } else {
+          setScreen("profile");
+        }
+      } catch (e:any) {
+        pushToast(`Backend no disponible: ${e.message || e}`, "error");
         setScreen("profile");
       }
-    };
-    init();
+    })();
   }, []);
 
-  const fetchRisk = async (p: UserProfile) => {
+  const onSaveProfile = async (p: UserProfile) => {
     try {
-      const response = await predictRisk(p);
-      setRisk(response);
-    } catch (e) {
-      console.error(e);
+      setProfile(p);
+      localStorage.setItem("profile", JSON.stringify(p));
+      const r = await predictRisk(p);
+      setRisk(r);
+      pushToast("Perfil guardado y riesgo calculado", "success");
+      setScreen("dashboard");
+    } catch (e:any) {
+      pushToast(`Error al calcular riesgo: ${e.message || e}`, "error");
     }
   };
 
-  const handleSaveProfile = async (p: UserProfile) => {
-    setProfile(p);
-    localStorage.setItem("user_profile", JSON.stringify(p));
-    setScreen("dashboard");
-    await fetchRisk(p);
-  };
-
-  const handleGeneratePlan = async () => {
+  const onGeneratePlan = async () => {
     if (!profile || !risk) return;
     setLoadingPlan(true);
     try {
-      const payload = {
+      const req: CoachRequest = {
         user_profile: profile,
         risk_score: risk.score,
-        top_drivers: risk.drivers.slice(0, 3),
+        top_drivers: risk.drivers ?? ["IMC elevado", "Poca actividad", "Sueño insuficiente"],
       };
-      const res = await generateCoachPlan(payload);
+      const res = await generateCoachPlan(req);
       setPlan(res.plan);
       setPlanSources(res.sources || []);
-    } catch (e) {
-      console.error(e);
-      setPlan("No se pudo generar el plan. Intenta más tarde.");
+    } catch (e:any) {
+      pushToast(`No se pudo generar el plan: ${e.message || e}`, "error");
     } finally {
       setLoadingPlan(false);
     }
   };
 
+  const reset = () => {
+    localStorage.removeItem("profile");
+    setProfile(null);
+    setRisk(null);
+    setPlan(null);
+    setPlanSources([]);
+    setScreen("profile");
+    pushToast("Perfil reiniciado", "success");
+  };
+
   if (screen === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-50">
-        <div className="animate-pulse text-center">
-          <div className="text-4xl mb-2">❤️</div>
-          <p className="text-slate-300">Cargando tu asistente de salud...</p>
-        </div>
+      <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-50">
+        <div className="animate-pulse text-slate-400">Cargando...</div>
       </div>
     );
   }
 
-  if (screen === "profile") {
-    return <ProfileScreen onSave={handleSaveProfile} />;
-  }
-
-  if (screen === "dashboard" && profile) {
-    return (
-      <Dashboard
-        profile={profile}
-        risk={risk}
-        plan={plan}
-        planSources={planSources}
-        onGeneratePlan={handleGeneratePlan}
-        loadingPlan={loadingPlan}
-        goToMeals={() => setScreen("meal")}
-        reset={() => {
-          localStorage.clear();
-          setProfile(null);
-          setRisk(null);
-          setPlan(null);
-          setPlanSources([]);
-          setScreen("profile");
-        }}
-      />
-    );
-  }
-
-  if (screen === "meal") {
-    return <MealScreen goBack={() => setScreen("dashboard")} />;
-  }
-
-  return null;
-}
+  return (
+    <>
+      <Toasts items={toasts} onClose={(id)=>setToasts(t=>t.filter(x=>x.id!==id))} />
+      {screen === "profile" && <ProfileScreen onSave={onSaveProfile} />}
+      {screen === "dashboard" && profile && (
+        <Dashboard
+          profile={profile}
+          risk={risk}
+          plan={plan}
+          planSources={planSources}
+          onGeneratePlan={onGeneratePlan}
+          loadingPlan={loadingPlan}
+          goToMeals={() => setScreen("meal")}
+          reset={reset}
+        />
+      )}
+      {screen === "meal" && <MealScreen goBack={() => setScreen("dashboard")} />}
+    </>
+  );
+};
 
 export default App;

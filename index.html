@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Asistente Cardiometabólico</title>
+
+    <!-- ✅ Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- ✅ Fuente -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- ✅ Configuración de tema oscuro -->
+    <script>
+      if (
+        localStorage.getItem("theme") === "dark" ||
+        (!("theme" in localStorage) &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches)
+      ) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+
+      tailwind.config = {
+        darkMode: "class",
+      };
+    </script>
+
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f3f4f6; /* bg-gray-100 */
+      }
+      html.dark body {
+        background-color: #111827; /* bg-gray-900 */
+      }
+
+      /* Animaciones y estilos base */
+      .screen {
+        opacity: 0;
+        transition: opacity 0.3s ease-out;
+        display: none;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+      .screen.active {
+        opacity: 1;
+        display: block;
+        position: relative;
+      }
+
+      /* Indicador de riesgo (gauge) */
+      .gauge {
+        width: 200px;
+        height: 100px;
+        position: relative;
+        overflow: hidden;
+        margin: 0 auto;
+      }
+      .gauge-body {
+        width: 200px;
+        height: 100px;
+        border-radius: 100px 100px 0 0;
+        background: conic-gradient(
+          from -90deg at 50% 100%,
+          #10b981 0%,
+          #34d399 30%,
+          #f59e0b 60%,
+          #ef4444 90%,
+          #dc2626 100%
+        );
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      .gauge-fill {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: inherit;
+        height: 100%;
+        background: #f3f4f6;
+        transform-origin: center top;
+        transform: rotate(var(--gauge-angle, 0deg));
+        transition: transform 0.5s ease-out;
+      }
+      html.dark .gauge-fill {
+        background: #111827;
+      }
+      .gauge-cover {
+        width: 160px;
+        height: 80px;
+        background: #ffffff;
+        border-radius: 100px 100px 0 0;
+        position: absolute;
+        top: 20px;
+        left: 20px;
+      }
+      html.dark .gauge-cover {
+        background: #1f2937;
+      }
+      .gauge-value {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 1.875rem;
+        font-weight: 700;
+      }
+      .gauge-label {
+        position: absolute;
+        bottom: -5px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.875rem;
+        color: #6b7280;
+      }
+      html.dark .gauge-label {
+        color: #9ca3af;
+      }
+
+      /* Carga, chat y toasts */
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .spinner {
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes fade-in-up {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .chat-bubble {
+        opacity: 0;
+        transform: translateY(10px);
+        animation: fade-in-up 0.3s ease-out forwards;
+      }
+      .animate-fade-in-up {
+        animation: fade-in-up 0.5s ease-out forwards;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+      #heart-avatar {
+        animation: pulse 2s infinite ease-in-out;
+      }
+    </style>
+
+    <!-- ✅ Import map opcional (si usas módulos externos) -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://aistudiocdn.com/react@^19.2.0",
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+          "react/": "https://aistudiocdn.com/react@^19.2.0/",
+          "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0"
+        }
+      }
+    </script>
+
+    <link rel="stylesheet" href="/index.css" />
+  </head>
+
+  <body class="bg-gray-100 dark:bg-gray-900">
+    <div id="root"></div>
+
+    <!-- ✅ ESTA ES LA LÍNEA CLAVE -->
+    <script type="module" src="/src/index.tsx"></script>
+    <!-- o si lo renombraste -->
+    <!-- <script type="module" src="/src/main.tsx"></script> -->
+  </body>
+</html>
